@@ -7,7 +7,7 @@ A web application that allows users to upload PDF files and chat with them using
 - **PDF Upload**: Upload PDF files (max 10MB)
 - **Vector Embeddings**: Create embeddings using OpenAI's text-embedding-3-small
 - **Vector Search**: Search for relevant content using Qdrant vector database
-- **AI Chat**: Chat with PDFs using GPT-4
+- **AI Chat**: Chat with PDFs using gemini-2.0-flash
 - **Context Persistence**: Maintain chat context across page refreshes
 
 ## Architecture
