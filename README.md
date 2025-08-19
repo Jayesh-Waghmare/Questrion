@@ -92,7 +92,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 Create a `.env` file in the backend directory:
 
 ```env
-OPENAI_API_KEY=your_openai_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ## Troubleshooting
