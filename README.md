@@ -27,7 +27,7 @@ A web application that allows users to upload PDF files and chat with them using
 1. **Python 3.8+**
 2. **Node.js 16+**
 3. **Qdrant Vector Database**
-4. **OpenAI API Key**
+4. **GEMINI API Key**
 
 ## Setup
 
@@ -40,7 +40,7 @@ cd backend
 pip install -r requirements.txt
 
 # Create .env file
-echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
+echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
 ```
 
 ### 2. Start Qdrant Vector Database
@@ -98,7 +98,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ## Troubleshooting
 
 1. **Qdrant Connection Error**: Ensure Qdrant is running on localhost:6333
-2. **OpenAI API Error**: Check your API key and billing
+2. **GEMINI API Error**: Check your API key and billing
 3. **PDF Processing Error**: Ensure PDF is not corrupted and under 5MB
 
 ## Development
@@ -106,7 +106,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 The backend uses:
 - FastAPI for the web server
 - LangChain for PDF processing
-- OpenAI for embeddings and chat
+- OpenAI for embeddings and Gemini-2.0-flash for chat
 - Qdrant for vector storage
 
 The frontend uses:
