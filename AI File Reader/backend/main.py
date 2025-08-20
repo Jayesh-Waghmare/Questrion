@@ -37,9 +37,14 @@ if not os.getenv("OPENAI_API_KEY"):
 
 app = FastAPI(title="AI File Reader API", version="1.0.0")
 
+origins = [
+    "https://questrion.vercel.app",
+    "https://questrionai.ddnsfree.com"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://questrion.vercel.app"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
