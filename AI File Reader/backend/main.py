@@ -303,17 +303,15 @@ async def chat_with_file(request: ChatRequest, user_id: str = Depends(auth)):
             embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
             vector_store = None
             last_error = None
-            for prefix in ["file_", "pdf_"]:
-                collection_name = f"{prefix}{request.conversationId}"
-                try:
-                    vector_store = QdrantVectorStore.from_existing_collection(
-                        url="http://vector-db:6333",
-                        collection_name=collection_name,
-                        embedding=embeddings
-                    )
-                    break
-                except Exception as e:
-                    last_error = e
+
+            collection_name = f"file_{request.conversationId}"
+            vector_store = QdrantVectorStore.from_existing_collection(
+                url="http://vector-db:6333",
+                collection_name=collection_name,
+                embedding=embeddings
+            )
+        except Exception as e:
+            last_error = e
             
             if vector_store is None:
                 raise HTTPException(
