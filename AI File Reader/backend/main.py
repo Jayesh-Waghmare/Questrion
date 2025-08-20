@@ -452,16 +452,15 @@ async def delete_creation(
             
             try:
                 qdrant_url = "http://vector-db:6333"
-                for prefix in ["file_", "pdf_"]:
-                    collection_name = f"{prefix}{creation_id}"
-                    delete_url = f"{qdrant_url}/collections/{collection_name}"
-                    response = requests.delete(delete_url)
-                    if response.status_code == 200:
-                        logger.info(f"Successfully deleted Qdrant collection: {collection_name}")
-                    elif response.status_code == 404:
-                        logger.info(f"Qdrant collection {collection_name} not found (already deleted)")
-                    else:
-                        logger.warning(f"Failed to delete Qdrant collection {collection_name}: {response.status_code}")
+                collection_name = f"file_{creation_id}"
+                delete_url = f"{qdrant_url}/collections/{collection_name}"
+                response = requests.delete(delete_url)
+                if response.status_code == 200:
+                    logger.info(f"Successfully deleted Qdrant collection: {collection_name}")
+                elif response.status_code == 404:
+                    logger.info(f"Qdrant collection {collection_name} not found (already deleted)")
+                else:
+                    logger.warning(f"Failed to delete Qdrant collection {collection_name}: {response.status_code}")
             except Exception as e:
                 logger.warning(f"Error deleting Qdrant collection(s): {e}")
                 
