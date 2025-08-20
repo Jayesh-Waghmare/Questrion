@@ -39,7 +39,7 @@ app = FastAPI(title="AI File Reader API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["https://questrion.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -287,7 +287,6 @@ async def chat_with_file(request: ChatRequest, user_id: str = Depends(auth)):
                 raise HTTPException(status_code=404, detail="Conversation not found")
 
             file_content = creation['pdf_content'] or ''
-            # Defensively clean content (covers conversations created before this fix)
             file_content = clean_text(file_content)
         finally:
             cur.close()
@@ -324,7 +323,6 @@ async def chat_with_file(request: ChatRequest, user_id: str = Depends(auth)):
                     detail="No vector context found for this conversation. Please re-upload the file."
                 )
             retrieved_context = "\n\n".join(doc.page_content for doc in matches)
-            # Optionally clean retrieved chunks as well
             retrieved_context = clean_text(retrieved_context)
         except HTTPException:
             raise
