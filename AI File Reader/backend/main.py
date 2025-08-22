@@ -208,7 +208,7 @@ async def upload_file(
             if not split_docs or not any(doc.page_content.strip() for doc in split_docs):
                 raise HTTPException(status_code=400, detail="No meaningful content found in file for indexing")
             
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+            embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
             QdrantVectorStore.from_documents(
                 documents=split_docs,
                 url="http://vector-db:6333",
