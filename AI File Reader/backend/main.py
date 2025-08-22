@@ -172,6 +172,7 @@ async def upload_file(
     try:
         logger.info(f"Processing file upload for user: {user_id}")
 
+        # --- File validation ---
         allowed_extensions = ['pdf', 'docx', 'pptx', 'xlsx', 'xls', 'txt', 'md']
         file_ext = file.filename.lower().split('.')[-1]
         if file_ext not in allowed_extensions:
@@ -179,12 +180,13 @@ async def upload_file(
                 status_code=400, 
                 detail=f"File type not supported. Allowed types: {', '.join(allowed_extensions)}"
             )
-        
+
         content = await file.read()
         await file.seek(0)
         if len(content) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File size exceeds allowed size (10MB)")
-        
+            raise HTTPException(status_code=400, detail="File size exceeds 10MB")
+
+        # --- Extract text ---
         try:
             file_text = extract_text_from_file(content, file.filename)
             if not file_text.strip():
@@ -193,10 +195,12 @@ async def upload_file(
             raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
 
         safe_text = clean_text(file_text.replace('\x00', ''))
-        
-        new_id = str(uuid.uuid4())
 
+        # --- Create a unique ID and collection name ---
+        new_id = str(uuid.uuid4())
         collection_name = f"file_{new_id}"
+
+        # --- Split and embed text ---
         try:
             if not os.getenv("OPENAI_API_KEY"):
                 raise HTTPException(status_code=500, detail="OPENAI_API_KEY is required for embeddings")
@@ -204,28 +208,49 @@ async def upload_file(
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=400)
             docs = [Document(page_content=safe_text)]
             split_docs = text_splitter.split_documents(docs)
-            
+
             if not split_docs or not any(doc.page_content.strip() for doc in split_docs):
-                raise HTTPException(status_code=400, detail="No meaningful content found in file for indexing")
-            
+                raise HTTPException(status_code=400, detail="No meaningful content found for indexing")
+
+            logger.info(f"Number of document chunks: {len(split_docs)}")
+            for i, doc in enumerate(split_docs[:3]):
+                logger.info(f"Chunk {i}: {doc.page_content[:100]}...")
+
             embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+
+            # --- Generate embeddings for debug ---
+            vectors = [embeddings.embed_document(doc.page_content) for doc in split_docs]
+            logger.info(f"Generated {len(vectors)} embeddings successfully")
+
+            # --- Insert into Qdrant ---
             QdrantVectorStore.from_documents(
                 documents=split_docs,
                 url="http://vector-db:6333",
                 collection_name=collection_name,
                 embedding=embeddings
             )
-            logger.info(f"Successfully indexed {len(split_docs)} chunks into Qdrant collection {collection_name}")
+            logger.info(f"Successfully indexed chunks into Qdrant collection {collection_name}")
+
+            # --- Verify insertion ---
+            resp = requests.get(f"http://vector-db:6333/collections/{collection_name}")
+            if resp.status_code == 200:
+                indexed_vectors = resp.json()['result'].get('indexed_vectors_count', 0)
+                logger.info(f"Qdrant collection {collection_name} indexed_vectors_count: {indexed_vectors}")
+                if indexed_vectors == 0:
+                    raise HTTPException(status_code=500, detail="Vector indexing failed: 0 vectors stored")
+            else:
+                raise HTTPException(status_code=500, detail="Could not verify Qdrant collection after insertion")
+
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Vector indexing failed: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to create vector index: {str(e)}")
 
+        # --- Insert into database ---
         conn = get_db_connection()
         cur = conn.cursor()
         try:
-            logger.info(f"Inserting creation with id={new_id}, user_id={user_id}")
             cur.execute("""
                 INSERT INTO creations (id, user_id, prompt, content, type, pdf_content, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, NOW())
@@ -242,10 +267,8 @@ async def upload_file(
             conn.commit()
         except Exception as e:
             logger.error(f"DB insert error: {e}")
-            logger.error(traceback.format_exc())
             try:
-                delete_url = f"http://vector-db:6333/collections/{collection_name}"
-                requests.delete(delete_url)
+                requests.delete(f"http://vector-db:6333/collections/{collection_name}")
             except Exception:
                 pass
             raise HTTPException(status_code=500, detail="Failed to save file information")
@@ -258,8 +281,9 @@ async def upload_file(
             "conversationId": new_id,
             "fileText": safe_text,
             "extractedText": safe_text,
-            "pdfText": safe_text       
+            "pdfText": safe_text
         })
+
     except HTTPException as he:
         raise he
     except Exception as e:
