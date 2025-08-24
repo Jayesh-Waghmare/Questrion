@@ -1,9 +1,9 @@
 import uuid
 import traceback
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from middlewares.auth import auth
 import os
@@ -107,21 +107,21 @@ def clean_text(text: str) -> str:
 def extract_text_from_file(file_content: bytes, filename: str) -> str:
     """Extract text from various file formats"""
     file_ext = filename.lower().split('.')[-1]
-    
+
     if file_ext == 'pdf':
         pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
         text = ""
         for page in pdf_reader.pages:
             text += page.extract_text() or ""
         return text
-    
+
     elif file_ext in ['docx']:
         doc = DocxDocument(io.BytesIO(file_content))
         text = ""
         for paragraph in doc.paragraphs:
             text += paragraph.text + "\n"
         return text
-    
+
     elif file_ext in ['pptx']:
         prs = Presentation(io.BytesIO(file_content))
         text = ""
@@ -130,7 +130,7 @@ def extract_text_from_file(file_content: bytes, filename: str) -> str:
                 if hasattr(shape, "text"):
                     text += shape.text + "\n"
         return text
-    
+
     elif file_ext in ['xlsx']:
         workbook = openpyxl.load_workbook(io.BytesIO(file_content))
         text = ""
@@ -141,7 +141,7 @@ def extract_text_from_file(file_content: bytes, filename: str) -> str:
                 if row_text.strip():
                     text += row_text + "\n"
         return text
-    
+
     elif file_ext in ['xls']:
         workbook = xlrd.open_workbook(file_contents=file_content)
         text = ""
@@ -152,17 +152,16 @@ def extract_text_from_file(file_content: bytes, filename: str) -> str:
                 if row_text.strip():
                     text += row_text + "\n"
         return text
-    
+
     elif file_ext in ['txt', 'md']:
         return file_content.decode('utf-8', errors='ignore')
-    
+
     else:
         raise ValueError(f"Unsupported file format: {file_ext}")
 
 @app.get("/")
 async def root():
     return {"message": "Server is Live!"}
-
 
 @app.post("/api/ai/upload")
 async def upload_file(
@@ -177,38 +176,47 @@ async def upload_file(
         file_ext = file.filename.lower().split('.')[-1]
         if file_ext not in allowed_extensions:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"File type not supported. Allowed types: {', '.join(allowed_extensions)}"
             )
-        
+
         content = await file.read()
         await file.seek(0)
         if len(content) > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="File size exceeds allowed size (10MB)")
-        
+
         try:
             file_text = extract_text_from_file(content, file.filename)
+            logger.info(f"[PDF Extraction] Length of extracted text: {len(file_text)}")
+            logger.info(f"[PDF Extraction] First 500 chars:\n{file_text[:500]}")
+
             if not file_text.strip():
                 raise HTTPException(status_code=400, detail="Could not extract text from file.")
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
 
         safe_text = clean_text(file_text.replace('\x00', ''))
-        
+
+        if not safe_text.strip():
+             raise HTTPException(status_code=400, detail="File has no extractable text")
         new_id = str(uuid.uuid4())
 
         collection_name = f"file_{new_id}"
         try:
             if not os.getenv("OPENAI_API_KEY"):
                 raise HTTPException(status_code=500, detail="OPENAI_API_KEY is required for embeddings")
-            
+
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=400)
             docs = [Document(page_content=safe_text)]
             split_docs = text_splitter.split_documents(docs)
-            
+
+            for i, doc in enumerate(split_docs):
+                logger.info(f"[Chunk {i}] length={len(doc.page_content)}")
+                logger.info(f"[Chunk {i}] snippet={doc.page_content[:200]}")
+
             if not split_docs or not any(doc.page_content.strip() for doc in split_docs):
                 raise HTTPException(status_code=400, detail="No meaningful content found in file for indexing")
-            
+
             embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
             QdrantVectorStore.from_documents(
                 documents=split_docs,
@@ -259,7 +267,7 @@ async def upload_file(
             "conversationId": new_id,
             "fileText": safe_text,
             "extractedText": safe_text,
-            "pdfText": safe_text       
+            "pdfText": safe_text
         })
     except HTTPException as he:
         raise he
@@ -267,6 +275,7 @@ async def upload_file(
         logger.error(f"Error in /api/ai/upload: {e}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/ai/pdf")
 async def upload_pdf(
@@ -280,12 +289,12 @@ async def upload_pdf(
 async def chat_with_file(request: ChatRequest, user_id: str = Depends(auth)):
     try:
         logger.info(f"Processing chat request for user: {user_id}, conversation: {request.conversationId}")
-        
+
         conn = get_db_connection()
         cur = conn.cursor()
         try:
             cur.execute("""
-                SELECT pdf_content FROM creations 
+                SELECT pdf_content FROM creations
                 WHERE user_id = %s AND id = %s
             """, (user_id, request.conversationId))
             creation = cur.fetchone()
@@ -298,9 +307,12 @@ async def chat_with_file(request: ChatRequest, user_id: str = Depends(auth)):
             cur.close()
             conn.close()
 
+        retrieved_context = ""
+
         try:
             if not os.getenv("OPENAI_API_KEY"):
                 raise Exception("OPENAI_API_KEY is required for embeddings")
+
             embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
             vector_store = None
             last_error = None
@@ -313,37 +325,38 @@ async def chat_with_file(request: ChatRequest, user_id: str = Depends(auth)):
             )
         except Exception as e:
             last_error = e
-            
+
             if vector_store is None:
                 raise HTTPException(
                     status_code=409,
                     detail="Vector index missing or unreachable. Please re-upload the file."
                 )
-            
-            matches = vector_store.similarity_search(query=request.message, k=5)
-            if not matches:
-                raise HTTPException(
-                    status_code=409,
-                    detail="No vector context found for this conversation. Please re-upload the file."
-                )
-            retrieved_context = "\n\n".join(doc.page_content for doc in matches)
-            retrieved_context = clean_text(retrieved_context)
-        except HTTPException:
-            raise
-        except Exception:
+
+        matches = vector_store.similarity_search(query=request.message, k=5)
+
+        if not matches:
             raise HTTPException(
                 status_code=409,
-                detail="Vector index missing or unreachable. Please re-upload the file."
+                detail="No vector context found for this conversation"
             )
+        for i, doc in enumerate(matches):
+            logger.info(f"[Retrieved Chunk {i}] length={len(doc.page_content)}")
+            logger.info(f"[Retrieved Chunk {i}] snippet={doc.page_content[:200]}")
+
+        retrieved_context = "\n\n".join(doc.page_content for doc in matches)
+        retrieved_context = clean_text(retrieved_context)
+
+        print("🔍 Retrieved Context Chunks:", retrieved_context)
+        print("📝 Final Prompt Sent to LLM:", f"Use the following context:\n\n{retrieved_context}")
 
         SYSTEM_PROMPT = f"""
             You are a helpful AI Assistant who answers user queries based only on the retrieved context.
-            
+
             Context:
             {retrieved_context}
-            
+
             User Question: {request.message}
-            
+
             Answer concisely and cite only from the context and give the page number of the answer if the file contains page number.
         """
 
@@ -432,25 +445,25 @@ async def delete_creation(
 ):
     try:
         logger.info(f"Deleting creation {creation_id} for user {user_id}")
-        
+
         conn = get_db_connection()
         cur = conn.cursor()
         try:
             cur.execute("""
-                SELECT id FROM creations 
+                SELECT id FROM creations
                 WHERE id = %s AND user_id = %s
             """, (creation_id, user_id))
-            
+
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Creation not found")
 
             cur.execute("""
-                DELETE FROM creations 
+                DELETE FROM creations
                 WHERE id = %s AND user_id = %s
             """, (creation_id, user_id))
-            
+
             conn.commit()
-            
+
             try:
                 qdrant_url = "http://vector-db:6333"
                 collection_name = f"file_{creation_id}"
@@ -464,7 +477,7 @@ async def delete_creation(
                     logger.warning(f"Failed to delete Qdrant collection {collection_name}: {response.status_code}")
             except Exception as e:
                 logger.warning(f"Error deleting Qdrant collection(s): {e}")
-                
+
         finally:
             cur.close()
             conn.close()
@@ -473,7 +486,7 @@ async def delete_creation(
             "success": True,
             "message": "Creation deleted successfully"
         })
-        
+
     except HTTPException as he:
         raise he
     except Exception as e:

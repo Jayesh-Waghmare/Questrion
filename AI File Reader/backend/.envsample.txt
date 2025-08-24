@@ -1,0 +1,4 @@
+DATABASE_URL=<your-postgres-database-url>
+CLERK_FRONTEND_API=<your-clerk-frontend-api>
+GEMINI_API_KEY=<your-gemini-api-key>
+OPENAI_API_KEY=<your-openai-api-key>
