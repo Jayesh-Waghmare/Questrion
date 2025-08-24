@@ -1,5 +1,5 @@
 # QuestrionAI – AI-Powered Document Q&A Platform (Built with RAG)
-QuestrionAI is a **Retrieval-Augmented Generation (RAG)** powered full-stack application that lets you **upload PDFs and chat with them**. It extracts content, generates **OpenAI embeddings**, stores them in **Qdrant**, and retrieves the most relevant chunks to ground LLM answers.  
+QuestrionAI is a **Retrieval-Augmented Generation (RAG)** powered full-stack application built with the PERN stack that lets you **upload PDFs and chat with them**. It extracts content, generates **OpenAI embeddings**, stores them in **Qdrant**, and retrieves the most relevant chunks to ground LLM answers.  
 
 The app is containerized with **Docker** and deployed on **AWS EC2** (backend) and **Vercel** (frontend), with **Clerk** for authentication.
 
