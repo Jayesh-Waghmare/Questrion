@@ -15,10 +15,9 @@ const Layout = () => {
   <div className='h-screen flex flex-col overflow-hidden bg-neo text-white'>
     {/* Fixed Navbar */}
     <nav className='fixed top-0 left-0 right-0 z-30 w-full px-8 h-14 flex items-center justify-between border-b border-white/10 glass'>
-      <img src={assets.image} alt="" className='w-12 sm:w-12 cursor-pointer transform scale-170' onClick={()=> navigate('/')}/>
+      <img src={assets.image} alt="" className='w-10 sm:w-12 cursor-pointer transform scale-170' onClick={()=> navigate('/')}/>
       { sidebar ? <X onClick={()=> setSidebar(false)} className='w-6 h-6 text-gray-200 sm:hidden cursor-pointer'/> : <Menu onClick={()=> setSidebar(true)} className='w-6 h-6 text-gray-200 sm:hidden cursor-pointer'/> }
     </nav>
-
     {/* Main Content Area */}
     <div className='pt-14 flex h-full min-h-0 text-white'>
       <Sidebar sidebar={sidebar} setSidebar={setSidebar}/>

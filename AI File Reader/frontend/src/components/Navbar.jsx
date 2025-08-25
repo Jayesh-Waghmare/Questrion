@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { assets } from '../assets/assets'
 import {useClerk, UserButton, useUser} from '@clerk/clerk-react'
 
-const Navbar = () => {
+function Navbar() {
 
     const navigate = useNavigate()
     const {user} = useUser()
@@ -18,7 +18,12 @@ const Navbar = () => {
         user ? <UserButton /> 
         : 
         (
-            <button onClick={openSignIn} className='flex items-center gap-2 rounded-full text-sm cursor-pointer bg-[#4285c3] hover:bg-[#1e5497] text-white px-10 py-2.5'>Login <ArrowRight className='w-4 h-4'/></button>
+            <button
+              onClick={openSignIn}
+              className='flex items-center gap-2 rounded-full text-xs sm:text-sm cursor-pointer bg-[#4285c3] hover:bg-[#1e5497] text-white px-5 sm:px-10 py-2.5'
+            >
+              Login <ArrowRight className='w-4 h-4'/>
+            </button>
         )
       }
 
