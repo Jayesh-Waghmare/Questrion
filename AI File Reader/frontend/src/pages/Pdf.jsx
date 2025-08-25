@@ -276,6 +276,7 @@ const Pdf = () => {
         />
         <p className="text-xs text-gray-400 font-light mt-1">
           Supports PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx, .xls), Text (.txt, .md)
+          <span> Max. 10 MB</span>
         </p>
         <button
           disabled={loading}
