@@ -35,5 +35,5 @@ The app is containerized with **Docker** and deployed on **AWS EC2** (backend) a
 
 1. **Upload PDF** → Extract + Clean → Chunk into passages  
 2. **Embed** → Generate embeddings (OpenAI) → Store in Qdrant  
-3. **Query** → Retrieve top-k relevant chunks → Build context prompt  
+3. **Query** → Retrieve relevant chunks → Build context prompt  
 4. **Answer** → LLM generates grounded response using retrieved context  
