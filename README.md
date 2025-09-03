@@ -23,9 +23,9 @@ The app is containerized with **Docker** and deployed on **AWS EC2** (backend) a
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React + Vite, TypeScript  
+- **Frontend:** React + Vite  
 - **Backend:** Python **FastAPI**, Uvicorn  
-- **AI/RAG:** OpenAI Embeddings (`text-embedding-3-large`) + Retrieval pipeline  
+- **AI/RAG:** OpenAI Embeddings (text-embedding-3-large) + Retrieval pipeline  
 - **Vector DB:** Qdrant  
 - **Auth:** Clerk  
 - **Infra:** Docker, Docker Compose, AWS EC2, Nginx reverse proxy  
